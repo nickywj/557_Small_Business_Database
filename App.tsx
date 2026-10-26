@@ -1,159 +1,119 @@
-import { StatusBar } from 'expo-status-bar';
+import { useState } from "react";
 import {
+  ActivityIndicator,
+  Pressable,
   StyleSheet,
   Text,
   View,
-  Pressable,
-} from 'react-native';
-import { useState } from 'react';
+} from "react-native";
+import { StatusBar } from "expo-status-bar";
 
-type UserRole = 'Employee' | 'Owner / General Manager';
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import LoginScreen from "./screens/LoginScreen";
+import RegisterScreen from "./screens/RegisterScreen";
+
+function AppContent() {
+  const { user, loading, logout } = useAuth();
+  const [showRegister, setShowRegister] = useState(false);
+
+  if (loading) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#2457A7" />
+        <Text style={styles.loadingText}>Checking session...</Text>
+      </View>
+    );
+  }
+
+  if (user) {
+    return (
+      <View style={styles.home}>
+        <Text style={styles.title}>Inventory & Waste Management</Text>
+        <Text style={styles.welcome}>Welcome, {user.name}</Text>
+        <Text style={styles.role}>Role: {user.role}</Text>
+
+        <Text style={styles.message}>
+          Your account is signed in. The inventory dashboard will be added
+          after authentication and database integration are complete.
+        </Text>
+
+        <Pressable
+          style={styles.button}
+          onPress={() => {
+            void logout().catch(() => {
+              // Keep the error visible if secure storage cannot be cleared.
+              // A future shared error handler can improve this.
+            });
+          }}
+        >
+          <Text style={styles.buttonText}>Log Out</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  return showRegister ? (
+    <RegisterScreen onLoginPress={() => setShowRegister(false)} />
+  ) : (
+    <LoginScreen onRegisterPress={() => setShowRegister(true)} />
+  );
+}
 
 export default function App() {
-  const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
-
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Restaurant Inventory</Text>
-      <Text style={styles.subtitle}>
-        Inventory and waste tracking
-      </Text>
-
-      {!selectedRole ? (
-        <View style={styles.card}>
-          <Text style={styles.heading}>Choose your role</Text>
-          <Text style={styles.description}>
-            Select the workspace you want to explore.
-          </Text>
-
-          <Pressable
-            style={styles.primaryButton}
-            onPress={() => setSelectedRole('Employee')}
-          >
-            <Text style={styles.buttonText}>Employee</Text>
-            <Text style={styles.buttonDescription}>
-              Log waste and report stock issues
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={styles.primaryButton}
-            onPress={() => setSelectedRole('Owner / General Manager')}
-          >
-            <Text style={styles.buttonText}>
-              Owner / General Manager
-            </Text>
-            <Text style={styles.buttonDescription}>
-              Review waste, stock, and deliveries
-            </Text>
-          </Pressable>
-        </View>
-      ) : (
-        <View style={styles.card}>
-          <Text style={styles.heading}>{selectedRole}</Text>
-          <Text style={styles.description}>
-            Welcome to your workspace!
-          </Text>
-
-          {selectedRole === 'Employee' ? (
-            <>
-              <Text style={styles.feature}>• Log wasted inventory</Text>
-              <Text style={styles.feature}>• Report low stock</Text>
-              <Text style={styles.feature}>• Report out-of-stock items</Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.feature}>• Record deliveries</Text>
-              <Text style={styles.feature}>• Review waste reports</Text>
-              <Text style={styles.feature}>• Review reorder needs</Text>
-            </>
-          )}
-
-          <Pressable
-            style={styles.secondaryButton}
-            onPress={() => setSelectedRole(null)}
-          >
-            <Text style={styles.secondaryButtonText}>
-              Back to role selection
-            </Text>
-          </Pressable>
-        </View>
-      )}
-
-      <StatusBar style="auto" />
-    </View>
+    <AuthProvider>
+      <StatusBar style="dark" />
+      <AppContent />
+    </AuthProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loading: {
     flex: 1,
-    backgroundColor: '#f4f6f8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F3F5F7",
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#687386",
+  },
+  home: {
+    flex: 1,
+    justifyContent: "center",
+    padding: 28,
+    backgroundColor: "#F3F5F7",
+    gap: 16,
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 8,
-    color: '#1f2937',
-    textAlign: 'center',
+    fontWeight: "700",
+    color: "#203047",
   },
-  subtitle: {
+  welcome: {
+    fontSize: 20,
+    color: "#203047",
+  },
+  role: {
     fontSize: 16,
-    color: '#64748b',
-    marginBottom: 32,
-    textAlign: 'center',
+    color: "#687386",
   },
-  card: {
-    width: '100%',
-    maxWidth: 380,
-    backgroundColor: '#ffffff',
-    padding: 20,
-    borderRadius: 12,
-    gap: 14,
+  message: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: "#465366",
   },
-  heading: {
-    fontSize: 21,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  description: {
-    fontSize: 15,
-    color: '#64748b',
-    lineHeight: 22,
-  },
-  primaryButton: {
-    backgroundColor: '#2563eb',
-    padding: 16,
-    borderRadius: 10,
-    gap: 5,
+  button: {
+    backgroundColor: "#2457A7",
+    padding: 15,
+    borderRadius: 9,
+    alignItems: "center",
   },
   buttonText: {
-    color: '#ffffff',
+    color: "#FFFFFF",
+    fontWeight: "700",
     fontSize: 16,
-    fontWeight: '600',
-  },
-  buttonDescription: {
-    color: '#dbeafe',
-    fontSize: 13,
-  },
-  feature: {
-    fontSize: 15,
-    color: '#334155',
-    lineHeight: 24,
-  },
-  secondaryButton: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#cbd5e1',
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  secondaryButtonText: {
-    color: '#334155',
-    fontWeight: '600',
   },
 });

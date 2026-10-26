@@ -1,17 +1,31 @@
-/**
- * API configuration for the mobile app.
- *
- * Set this to your Mac's reachable backend address
- * when you're ready to test on a trusted network.
- */
-const API_BASE_URL = 'http://127.0.0.1:8000'; // Change this to phone IP address
+const API_BASE_URL =
+    process.env.EXPO_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
-export async function checkBackendHealth() {
-    const response = await fetch(`${API_BASE_URL}/health`);
+export async function apiRequest<T>(
+    path: string,
+    options: RequestInit = {},
+    token?: string
+): Promise<T> {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            ...options.headers,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+    });
+
+    const body = await response.json().catch(() => null);
 
     if (!response.ok) {
-        throw new Error(`Backend returned status ${response.status}`);
+        const detail = body?.detail;
+        const message =
+            typeof detail === "string"
+                ? detail
+                : `Request failed with status ${response.status}`;
+
+        throw new Error(message);
     }
 
-    return response.json() as Promise<{ status: string }>;
+    return body as T;
 }
