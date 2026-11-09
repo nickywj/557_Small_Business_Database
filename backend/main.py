@@ -1,17 +1,22 @@
 from fastapi import FastAPI
+from routers.auth import router as auth_router
 
 app = FastAPI(
-    title="Bar Inventory API",
-    description="Backend API for the bar inventory application",
+    title="Restaurant Inventory API",
+    description="Backend API for restaurant and bar inventory and waste tracking.",
     version="0.1.0",
 )
 
+app.include_router(auth_router)
 
 @app.get("/")
 def root():
-    return {"message": "Welcome to the Bar Inventory API"}
+    return {
+        "message": "Restaurant Inventory API is running!",
+        "status": "ok",
+    }
 
 
 @app.get("/health")
 def health_check():
-    return {"status": "ok"}
+    return {"status": "healthy"}
