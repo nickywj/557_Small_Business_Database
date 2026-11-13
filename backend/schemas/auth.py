@@ -47,7 +47,7 @@ class UserPublic(BaseModel):
     id: str
     name: str
     email: str
-    role: Literal["employee", "manager"]
+    role: Literal["employee", "manager", "owner"]
 
 
 class TokenResponse(BaseModel):

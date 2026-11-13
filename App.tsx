@@ -15,7 +15,7 @@ import RegisterScreen from "./screens/RegisterScreen";
 function AppContent() {
   const { user, loading, logout } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
-
+  console.log("API URL:", process.env.EXPO_PUBLIC_API_URL);
   if (loading) {
     return (
       <View style={styles.loading}>

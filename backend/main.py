@@ -1,4 +1,8 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from database import get_db
 from routers.auth import router as auth_router
 
 app = FastAPI(
@@ -8,6 +12,7 @@ app = FastAPI(
 )
 
 app.include_router(auth_router)
+
 
 @app.get("/")
 def root():
@@ -20,3 +25,9 @@ def root():
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/health/db")
+def health_db(db: Session = Depends(get_db)):
+    db.execute(text("SELECT 1"))
+    return {"database": "connected"}
