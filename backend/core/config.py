@@ -16,3 +16,9 @@ if not JWT_SECRET_KEY:
 
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Database configuration
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is missing. Add it to backend/.env.")

@@ -5,11 +5,12 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class RegisterRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=100)
-    email: str = Field(min_length=5, max_length=254)
+    first_name: str = Field(min_length=1, max_length=50)
+    last_name: str = Field(min_length=1, max_length=50)
+    email: str = Field(min_length=5, max_length=150)
     password: str = Field(min_length=8, max_length=128)
 
-    @field_validator("name")
+    @field_validator("first_name", "last_name")
     @classmethod
     def validate_name(cls, value: str) -> str:
         value = value.strip()
@@ -44,10 +45,12 @@ class LoginRequest(BaseModel):
 class UserPublic(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: str
-    name: str
+    user_id: str
+    first_name: str
+    last_name: str
     email: str
-    role: Literal["employee", "manager"]
+    user_role: Literal["Employee", "Manager", "Owner"]
+    account_status: Literal["Pending", "Active", "Inactive"]
 
 
 class TokenResponse(BaseModel):
