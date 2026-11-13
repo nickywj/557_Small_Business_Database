@@ -1,19 +1,29 @@
-const API_BASE_URL =
-    process.env.EXPO_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const API_BASE_URL = "https://tremor-hungrily-democracy.ngrok-free.dev";
 
 export async function apiRequest<T>(
     path: string,
     options: RequestInit = {},
     token?: string
 ): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-        ...options,
-        headers: {
-            "Content-Type": "application/json",
-            ...options.headers,
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-    });
+    let response: Response;
+
+    try {
+        response = await fetch(`${API_BASE_URL}${path}`, {
+            ...options,
+            headers: {
+                "Content-Type": "application/json",
+                "ngrok-skip-browser-warning": "true",
+                ...options.headers,
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+        });
+    } catch (error) {
+        // Temporary debugging: shows which URL the app is actually calling.
+        throw new Error(
+            `Cannot reach ${API_BASE_URL}${path}: ${error instanceof Error ? error.message : "network error"
+            }`
+        );
+    }
 
     const body = await response.json().catch(() => null);
 
@@ -22,7 +32,9 @@ export async function apiRequest<T>(
         const message =
             typeof detail === "string"
                 ? detail
-                : `Request failed with status ${response.status}`;
+                : Array.isArray(detail) && detail[0]?.msg
+                    ? String(detail[0].msg)
+                    : `Request failed with status ${response.status}`;
 
         throw new Error(message);
     }

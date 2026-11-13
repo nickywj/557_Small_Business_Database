@@ -1,88 +1,63 @@
-from uuid import uuid4
-
 from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
-from core.security import (
-    create_access_token,
-    hash_password,
-    verify_password,
-)
-from schemas.auth import (
-    LoginRequest,
-    RegisterRequest,
-    TokenResponse,
-    UserPublic,
-)
-
-# TEMPORARY DEVELOPMENT STORE: For testing login authentication before
-# developing a MySQL database. 
-# Replace this dictionary with MySQL repository operations later.
-_users_by_email: dict[str, dict] = {}
+from core.security import create_access_token, hash_password, verify_password
+from models.user import User
+from schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserPublic
 
 
-def register_user(data: RegisterRequest) -> UserPublic:
-    """Register a new employee account."""
-    if data.email in _users_by_email:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this email already exists.",
-        )
-
-    user = {
-        "id": str(uuid4()),
-        "name": data.name,
-        "email": data.email,
-        "password_hash": hash_password(data.password),
-        "role": "employee",
-    }
-
-    _users_by_email[data.email] = user
-
+def _to_public(user: User) -> UserPublic:
     return UserPublic(
-        id=user["id"],
-        name=user["name"],
-        email=user["email"],
-        role=user["role"],
+        id=str(user.user_id),
+        name=f"{user.first_name} {user.last_name}".strip(),
+        email=user.email,
+        role=user.user_role.lower(),
     )
 
 
-def authenticate_user(data: LoginRequest) -> TokenResponse:
-    """Verify credentials and issue an access token."""
-    user = _users_by_email.get(data.email)
+def register_user(db: Session, data: RegisterRequest) -> UserPublic:
+    first, _, last = data.name.partition(" ")
+    user = User(
+        first_name=first[:50],
+        last_name=last.strip()[:50],
+        email=data.email,
+        password_hash=hash_password(data.password),
+        user_role="Employee",
+        account_status="Active",
+    )
+    db.add(user)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            "An account with this email already exists.")
+    db.refresh(user)
+    return _to_public(user)
 
-    if user is None or not verify_password(
-        data.password, user["password_hash"]
-    ):
+
+def authenticate_user(db: Session, data: LoginRequest) -> TokenResponse:
+    user = db.execute(
+        select(User).where(User.email == data.email)
+    ).scalar_one_or_none()
+
+    if user is None or not verify_password(data.password, user.password_hash):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    token = create_access_token(subject=user["id"])
-
-    public_user = UserPublic(
-        id=user["id"],
-        name=user["name"],
-        email=user["email"],
-        role=user["role"],
-    )
+            status.HTTP_401_UNAUTHORIZED, "Invalid email or password.",
+            headers={"WWW-Authenticate": "Bearer"},)
+    if user.account_status != "Active":
+        raise HTTPException(status.HTTP_403_FORBIDDEN,
+                            "This account is not active.")
 
     return TokenResponse(
-        access_token=token,
-        token_type="bearer",
-        user=public_user,
-    )
+        access_token=create_access_token(subject=str(user.user_id)),
+        user=_to_public(user),)
 
-def get_user_by_id(user_id: str) -> UserPublic | None:
-    """Find a user by ID without exposing their password hash."""
-    for user in _users_by_email.values():
-        if user["id"] == user_id:
-            return UserPublic(
-                id=user["id"],
-                name=user["name"],
-                email=user["email"],
-                role=user["role"],
-            )
 
-    return None
+def get_user_by_id(db: Session, user_id: str) -> User | None:
+    try:
+        return db.get(User, int(user_id))
+    except ValueError:
+        return None

@@ -1,71 +1,42 @@
-from fastapi import APIRouter
 import jwt
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.orm import Session
 
-from core.config import JWT_ALGORITHM, JWT_SECRET_KEY
+from database import get_db
 from core.security import decode_access_token
-from schemas.auth import (
-    LoginRequest,
-    RegisterRequest,
-    TokenResponse,
-    UserPublic,
-)
-from services.auth_service import (
-    authenticate_user,
-    get_user_by_id,
-    register_user,
-)
+from services import auth_service as svc
+from schemas.auth import *
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
-bearer_scheme = HTTPBearer(auto_error=False)
-
-
-@router.post(
-    "/register",
-    response_model=UserPublic,
-    status_code=status.HTTP_201_CREATED,
-)
-def register(data: RegisterRequest):
-    return register_user(data)
-
-
-@router.post("/login", response_model=TokenResponse)
-def login(data: LoginRequest):
-    return authenticate_user(data)
+router = APIRouter(prefix="/auth", tags=["auth"])
+bearer = HTTPBearer()
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(
-        bearer_scheme
-    ),
+    creds: HTTPAuthorizationCredentials = Depends(bearer),
+    db: Session = Depends(get_db),
 ) -> UserPublic:
-    """Validate the bearer token and identify the current user."""
-    unauthorized = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid or expired authentication token.",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-
-    if credentials is None:
-        raise unauthorized
-
     try:
-        payload = decode_access_token(credentials.credentials)
+        payload = decode_access_token(creds.credentials)
     except jwt.InvalidTokenError:
-        raise unauthorized
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED,
+                            "Invalid or expired token.")
+    user = svc.get_user_by_id(db, payload.get("sub", ""))
+    if user is None or user.account_status != "Active":
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid session.")
+    return svc._to_public(user)
 
-    user_id = payload.get("sub")
-    if not isinstance(user_id, str) or not user_id:
-        raise unauthorized
 
-    user = get_user_by_id(user_id)
-    if user is None:
-        raise unauthorized
+@router.post("/register", response_model=UserPublic, status_code=201)
+def register(data: RegisterRequest, db: Session = Depends(get_db)):
+    return svc.register_user(db, data)
 
-    return user
+
+@router.post("/login", response_model=TokenResponse)
+def login(data: LoginRequest, db: Session = Depends(get_db)):
+    return svc.authenticate_user(db, data)
 
 
 @router.get("/me", response_model=UserPublic)
-def get_me(current_user: UserPublic = Depends(get_current_user)):
-    return current_user
+def me(user: UserPublic = Depends(get_current_user)):
+    return user
