@@ -1,0 +1,2 @@
+// This is a side menu that can jut out from the left of any screen inside of the app to provide a UI for navigation
+// It'll contain options like Dashboard, Log Waste, and Update Inventory. Managers and Owners will have additional options

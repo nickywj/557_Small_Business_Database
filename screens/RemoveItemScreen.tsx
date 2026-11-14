@@ -1,0 +1,2 @@
+// Managers and Owners can remove an item that has 0 stock if they do not plan on continuing to supply this item
+// This prevents the "Out Of" section from being clogged up with items that they do no order anymore
